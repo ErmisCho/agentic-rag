@@ -1,0 +1,27 @@
+---
+config:
+  flowchart:
+    curve: basis
+    nodeSpacing: 60
+    rankSpacing: 70
+---
+graph LR;
+	__start__([__start__]):::first
+	retrieve(retrieve)
+	grade_documents(grade_documents)
+	generate(generate)
+	retry_generate(retry_generate)
+	websearch(websearch)
+	__end__([__end__]):::last
+	__start__ --> retrieve;
+	generate -.  useful  .-> __end__;
+	generate -.  not_supported  .-> retry_generate;
+	generate -.  not_useful  .-> websearch;
+	grade_documents -.-> generate;
+	grade_documents -.-> websearch;
+	retrieve --> grade_documents;
+	retry_generate --> generate;
+	websearch --> generate;
+	classDef default fill:#f2f0ff,line-height:1.2
+	classDef first fill-opacity:0
+	classDef last fill:#bfb6fc

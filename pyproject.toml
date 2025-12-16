@@ -30,3 +30,11 @@ dependencies = [
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+filterwarnings = [
+  'ignore:Field name "output_schema" in "TavilyResearch" shadows an attribute in parent "BaseTool":UserWarning:langchain_tavily.*',
+  'ignore:Field name "stream" in "TavilyResearch" shadows an attribute in parent "BaseTool":UserWarning:langchain_tavily.*',
+]

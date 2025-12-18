@@ -9,25 +9,56 @@ load_dotenv()
 
 
 class GradeAnswer(BaseModel):
-
-    binary_score: bool = Field(
-        description="Answer addresses the question, 'yes' or 'no'"
+    grounded: bool = Field(
+        description="True if the answer is supported by the provided documents."
+    )
+    answers_question: bool = Field(
+        description="True if the answer addresses/resolves the user question."
+    )
+    verdict: str = Field(
+        description="One of: useful, not_useful, not_supported"
+    )
+    reason: str = Field(
+        description="Short reason (1-2 sentences)."
     )
 
 
 llm = ChatGoogleGenerativeAI(
-    google_api_key=os.environ["GEMINI_API_KEY"], model="gemini-2.5-flash", temperature=0)
-
+    google_api_key=os.environ["GEMINI_API_KEY"], model="gemini-2.5-flash", temperature=0
+)
 
 structured_llm_grader = llm.with_structured_output(GradeAnswer)
 
-system = """You are a grader assessing whether an answer addresses / resolves a question \n
-     Give a binary score 'yes' or 'no'. Yes' means that the answer resolves the question."""
+system = """You are a strict grader.
+
+You receive:
+1) A user question
+2) Retrieved documents (facts)
+3) A generated answer
+
+Tasks:
+A) Decide if the answer is grounded in the documents (no unsupported claims).
+B) Decide if the answer answers the question.
+
+Return:
+- grounded (bool)
+- answers_question (bool)
+- verdict:
+  - "useful" if grounded=True AND answers_question=True
+  - "not_useful" if grounded=True AND answers_question=False
+  - "not_supported" if grounded=False
+- reason: short justification
+"""
+
 answer_prompt = ChatPromptTemplate.from_messages(
     [
         ("system", system),
-        ("human",
-         "User question: \n\n {question} \n\n LLM generation: {generation}"),
+        (
+            "human",
+            "User question:\n{question}\n\n"
+            "Retrieved documents:\n{documents}\n\n"
+            "LLM generation:\n{generation}"
+        ),
     ]
 )
 

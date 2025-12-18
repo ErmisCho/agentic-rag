@@ -4,32 +4,35 @@ from ingestion import retriever
 from dotenv import load_dotenv
 from graph.chains.generation import generation_chain
 from pprint import pprint
+from graph.chains.router import question_router, RouteQuery
 
 load_dotenv()
 
 
-def test_retrival_grader_answer_yes() -> None:
+def test_retrieval_grader_answer_yes() -> None:
     question = 'agent memory'
     docs = retriever.invoke(question)
     doc_txt = docs[1].page_content
 
     res: GradeDocuments = retrieval_grader.invoke(
-        {"question": question, "document": doc_txt}
+        {"question": question, "documents": f"[0] {doc_txt}"}
     )
 
-    assert res.binary_score == "yes"
+    assert res.grades[0].index == 0
+    assert res.grades[0].relevant is True
 
 
-def test_retrival_grader_answer_no() -> None:
+def test_retrieval_grader_answer_no() -> None:
     question = "agent memory"
     docs = retriever.invoke(question)
     doc_txt = docs[1].page_content
 
     res: GradeDocuments = retrieval_grader.invoke(
-        {"question": "how to make pizza", "document": doc_txt}
+        {"question": "how to make pizza", "documents": f"[0] {doc_txt}"}
     )
 
-    assert res.binary_score == "no"
+    assert res.grades[0].index == 0
+    assert res.grades[0].relevant is False
 
 
 def test_generation_chain() -> None:
@@ -63,3 +66,16 @@ def test_hallucination_grader_answer_no() -> None:
         }
     )
     assert not res.binary_score
+
+
+def test_router_to_vectorstore() -> None:
+    question = "agent_memory"
+    res: RouteQuery = question_router.invoke({"question": question})
+    assert res.datasource == "vectorstore"
+
+
+def test_router_to_websearch() -> None:
+    question = "how to make pizza"
+
+    res: RouteQuery = question_router.invoke({"question": question})
+    assert res.datasource == "websearch"

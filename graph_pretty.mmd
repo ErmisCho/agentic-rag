@@ -13,7 +13,8 @@ graph LR;
 	retry_generate(retry_generate)
 	websearch(websearch)
 	__end__([__end__]):::last
-	__start__ --> retrieve;
+	__start__ -.-> retrieve;
+	__start__ -.-> websearch;
 	generate -.  useful  .-> __end__;
 	generate -.  not_supported  .-> retry_generate;
 	generate -.  not_useful  .-> websearch;

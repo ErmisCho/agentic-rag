@@ -3,32 +3,53 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import BaseModel, Field
 import os
 from dotenv import load_dotenv
+from typing import List
 
 load_dotenv()
 
 llm = ChatGoogleGenerativeAI(
-    google_api_key=os.environ["GEMINI_API_KEY"], model="gemini-2.5-flash", temperature=0)
+    google_api_key=os.environ["GEMINI_API_KEY"],
+    model="gemini-2.5-flash",
+    temperature=0,
+)
+
+
+class DocGrade(BaseModel):
+    """Grade for a single document."""
+    index: int = Field(
+        description="0-based index of the document in the input list.")
+    relevant: bool = Field(
+        description="True if relevant to the user question, else False.")
 
 
 class GradeDocuments(BaseModel):
-    """Binary score for relevance check on retrieved documents."""
-
-    binary_score: str = Field(
-        description="Documents are relevant to the question, 'yes' or 'no'"
-    )
+    """Grades for all documents."""
+    grades: List[DocGrade] = Field(
+        description="A grade for every provided document index.")
 
 
 structured_llm_grader = llm.with_structured_output(GradeDocuments)
 
-system = """You are a grader assessing relevance of a retrieved document to a user question. \n
-    If the document contains keyword(s) or semantic meaning related to the question, grade it as relevant. \n
-    Give a binary score 'yes' or 'no' score to indicate whether the document is relevant to the question."""
+system = """You are a strict grader assessing relevance of multiple retrieved documents to a user question.
+
+Rules:
+- You MUST return a grade for EVERY document index you receive.
+- relevant=True if the document contains keywords OR semantic meaning that helps answer the question.
+- relevant=False otherwise.
+- Do not skip any indices.
+"""
+
 grade_prompt = ChatPromptTemplate.from_messages(
     [
         ("system", system),
-        ("human",
-         "Retrieved document: \n\n {document} \n\n User question: {question}"),
+        (
+            "human",
+            "User question:\n{question}\n\n"
+            "Retrieved documents (each has an index):\n{documents}\n\n"
+            "Return grades for ALL indices."
+        ),
     ]
 )
 
+# Keep the same export name so you don't need to change imports elsewhere.
 retrieval_grader = grade_prompt | structured_llm_grader

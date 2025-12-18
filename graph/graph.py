@@ -1,4 +1,3 @@
-import os
 from dotenv import load_dotenv
 from pathlib import Path
 
@@ -14,6 +13,8 @@ from graph.chains.router import question_router, RouteQuery
 from langchain_google_genai.chat_models import ChatGoogleGenerativeAIError
 import re
 import time
+from graph.llm import invoke_with_429_retry
+
 
 load_dotenv()
 
@@ -39,8 +40,10 @@ def grade_generation_grounded_in_documents_and_question(state: GraphState) -> st
     )
 
     try:
-        score = answer_grader.invoke(
-            {"question": question, "documents": docs_text, "generation": generation}
+        score = invoke_with_429_retry(
+            answer_grader,
+            {"question": question, "documents": docs_text, "generation": generation},
+            max_retries=2,
         )
 
     except ChatGoogleGenerativeAIError as e:
@@ -51,9 +54,11 @@ def grade_generation_grounded_in_documents_and_question(state: GraphState) -> st
             print(
                 f"---SLEEPING FOR {wait_s} SECONDS DUE TO RESOURCE EXHAUSTION---")
             time.sleep(wait_s)
-            score = answer_grader.invoke(
+            score = invoke_with_429_retry(
+                answer_grader,
                 {"question": question, "documents": docs_text,
-                    "generation": generation}
+                    "generation": generation},
+                max_retries=2,
             )
         else:
             raise
@@ -71,6 +76,11 @@ def grade_generation_grounded_in_documents_and_question(state: GraphState) -> st
     # verdict == "not_supported" -> retry
     retry_count = state.get("retry_count", 0) + 1
     state["retry_count"] = retry_count
+
+    if retry_count >= 2:
+        print("---MAX RETRIES REACHED: STOP---")
+        return "give_up"
+
     print(f"---DECISION: NOT_SUPPORTED (RETRY #{retry_count})---")
 
     if retry_count >= 2:
@@ -107,7 +117,7 @@ workflow.set_conditional_entry_point(route_question,
                                          RETRIEVE: RETRIEVE,
                                      },)
 
-workflow.set_entry_point(RETRIEVE)
+# workflow.set_entry_point(RETRIEVE)
 workflow.add_edge(RETRIEVE, GRADE_DOCUMENTS)
 
 workflow.add_conditional_edges(
@@ -123,6 +133,7 @@ workflow.add_conditional_edges(
         "useful": END,
         "not_useful": WEBSEARCH,
         "not_supported": RETRY_GENERATE,
+        "give_up": END,
     },
 )
 

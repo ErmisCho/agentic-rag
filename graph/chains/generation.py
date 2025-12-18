@@ -1,14 +1,31 @@
+from graph.llm import get_chat_llm
 import os
 from langchain_classic import hub
 from langchain_core.output_parsers import StrOutputParser
-from langchain_google_genai import ChatGoogleGenerativeAI
-
+from langchain_core.prompts import ChatPromptTemplate
 from dotenv import load_dotenv
 
 load_dotenv()
 
-llm = ChatGoogleGenerativeAI(
-    google_api_key=os.environ["GEMINI_API_KEY"], model="gemini-2.5-flash", temperature=0)
-prompt = hub.pull('rlm/rag-prompt')
+llm = get_chat_llm(temperature=0.0, max_output_tokens=200)
+base_prompt = hub.pull("rlm/rag-prompt")
 
-generation_chain = prompt | llm | StrOutputParser()
+# Wrap the original prompt output with hard constraints
+short_wrapper = ChatPromptTemplate.from_messages(
+    [
+        (
+            "system",
+            "You are a concise RAG assistant.\n"
+            "Rules:\n"
+            "- Answer in 2-4 sentences.\n"
+            "- Max 80 words.\n"
+            "- No bullet points, no numbered lists.\n"
+            "- No preamble (no 'Sure', no 'Here is').\n"
+            "- If the context does not support an answer, say: "
+            "'I don't know based on the provided context.'\n",
+        ),
+        ("human", "{input}"),
+    ]
+)
+
+generation_chain = base_prompt | short_wrapper | llm | StrOutputParser()

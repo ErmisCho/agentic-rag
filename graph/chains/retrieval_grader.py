@@ -1,5 +1,5 @@
+from graph.llm import get_chat_llm
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import BaseModel, Field
 import os
 from dotenv import load_dotenv
@@ -7,11 +7,7 @@ from typing import List
 
 load_dotenv()
 
-llm = ChatGoogleGenerativeAI(
-    google_api_key=os.environ["GEMINI_API_KEY"],
-    model="gemini-2.5-flash",
-    temperature=0,
-)
+llm = get_chat_llm(temperature=0.0, max_output_tokens=200)
 
 
 class DocGrade(BaseModel):

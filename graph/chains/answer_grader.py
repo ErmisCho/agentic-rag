@@ -1,8 +1,7 @@
+from graph.llm import get_chat_llm
 from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel, Field
 from langchain_core.runnables import RunnableSequence
-from langchain_google_genai import ChatGoogleGenerativeAI
-import os
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -23,9 +22,7 @@ class GradeAnswer(BaseModel):
     )
 
 
-llm = ChatGoogleGenerativeAI(
-    google_api_key=os.environ["GEMINI_API_KEY"], model="gemini-2.5-flash", temperature=0
-)
+llm = get_chat_llm(temperature=0.0, max_output_tokens=200)
 
 structured_llm_grader = llm.with_structured_output(GradeAnswer)
 

@@ -18,3 +18,4 @@ class GraphState(TypedDict):
     generation: str
     web_search: bool
     documents: Annotated[List[Document], operator.add]
+    retry_count: int
